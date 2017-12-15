@@ -12,6 +12,7 @@ import jwt
 import json
 import time
 from multiprocessing import Process
+from pony import orm
 
 jwt_payload_handler = api_settings.JWT_PAYLOAD_HANDLER
 jwt_encode_handler = api_settings.JWT_ENCODE_HANDLER
@@ -51,6 +52,24 @@ def fetch_user_obj(email):
             'image': person.image
         }
         return json_res
+
+
+def fetch_user_from_jwt(request):
+    if 'HTTP_AUTHORIZATION' not in request.META:
+        return None
+    else:
+        token = request.META['HTTP_AUTHORIZATION']
+        r = requests.post('http://localhost:8000/api-token-verify/', {"token": token})
+        if r.status_code != 200:
+            return None
+        else:
+            payload = jwt.decode(token, verify=False)
+            email = jwt_get_username_from_payload_handler(payload)
+            if not models.MyUser.objects.filter(email=email).exists():
+                return None
+            else:
+                user = models.MyUser.objects.get(email=email)
+                return user
 
 
 @csrf_exempt
@@ -242,3 +261,160 @@ def register_categories(request):
                         person.categories.add(models.Category.objects.get(name=category))
                     response = HttpResponse('')
                     return response
+
+
+@csrf_exempt
+def fetch_items(request):
+    user = fetch_user_from_jwt(request)
+    if not user:
+        return HttpResponseForbidden()
+    else:
+
+        person = models.Person.objects.get(user=user)
+        print(person.name)
+        print(person.categories.all())
+        items = []
+        for category in person.categories.all():
+            item_list_cat = models.Item.objects.filter(category=category)
+            for item in item_list_cat:
+                items.append(
+                    {
+                        'id': item.id,
+                        'title': item.title,
+                        'description': item.description,
+                        'thumbnail': item.thumbnail,
+                        'link': item.link,
+                        'date': str(item.date),
+                        'category': item.category.name
+                    }
+                )
+    return HttpResponse(json.dumps(items))
+
+
+@csrf_exempt
+def store_post(request):
+    user = fetch_user_from_jwt(request)
+    if not user:
+        return HttpResponseForbidden()
+    else:
+        post_obj = json.loads(request.body)['post']
+        print(post_obj)
+        person = models.Person.objects.get(user=user)
+        item = models.Item.objects.get(id=post_obj['itemid'])
+        models.Post(item=item, user=person, title=post_obj['title']).save()
+        response = HttpResponse('')
+        return response
+
+
+@csrf_exempt
+def fetch_user_posts(request):
+    user = fetch_user_from_jwt(request)
+    if not user:
+        return HttpResponseForbidden()
+    else:
+        person = models.Person.objects.get(user=user)
+        posts = models.Post.objects.filter(user=person)
+        post_list = []
+
+        for post in posts:
+            comments = []
+            for comment in models.Comment.objects.filter(post=post):
+                comments.append(
+                    {
+                        'user': {
+                            'id': comment.user.id,
+                            'name': comment.user.name,
+                            'image': comment.user.image
+                        },
+                        'text': comment.text,
+                        'date': comment.date
+                    }
+                )
+            likes = []
+            for like in post.likes.all():
+                likes.append(like.user.id)
+            post_list.append(
+                {
+                    'postid': post.id,
+                    'user': {
+                        'id': user.id,
+                        'name': person.name,
+                        'image': person.image
+                    },
+                    'item': {
+                        'id': post.item.id,
+                        'title': post.item.title,
+                        'description': post.item.description,
+                        'thumbnail': post.item.thumbnail,
+                        'link': post.item.link,
+                        'date': str(post.item.date),
+                        'category': post.item.category.name
+                    },
+                    'title': post.title,
+                    'comments': comments,
+                    'tags': [],
+                    'likes': likes,
+                    'liked': False
+                }
+            )
+
+    return HttpResponse(json.dumps(post_list))
+
+@csrf_exempt
+def fetch_posts(request):
+    user = fetch_user_from_jwt(request)
+    if not user:
+        return HttpResponseForbidden()
+    else:
+        person = models.Person.objects.get(user=user)
+        friends_list = person.friends.all()
+        print(friends_list)
+        posts = models.Post.objects.filter(user=person)
+        post_list = []
+
+        for f in friends_list:
+            posts.append(models.Post.objects.filter(f))
+
+        for post in posts:
+            comments = []
+            for comment in models.Comment.objects.filter(post=post):
+                comments.append(
+                    {
+                        'user': {
+                            'id': comment.user.id,
+                            'name': comment.user.name,
+                            'image': comment.user.image
+                        },
+                        'text': comment.text,
+                        'date': comment.date
+                    }
+                )
+            likes = []
+            for like in post.likes.all():
+                likes.append(like.user.id)
+            post_list.append(
+                {
+                    'postid': post.id,
+                    'user': {
+                        'id': post.user.user.id,
+                        'name': post.user.name,
+                        'image': post.user.image
+                    },
+                    'item': {
+                        'id': post.item.id,
+                        'title': post.item.title,
+                        'description': post.item.description,
+                        'thumbnail': post.item.thumbnail,
+                        'link': post.item.link,
+                        'date': str(post.item.date),
+                        'category': post.item.category.name
+                    },
+                    'title': post.title,
+                    'comments': comments,
+                    'tags': [],
+                    'likes': likes,
+                    'liked': False
+                }
+            )
+
+    return HttpResponse(json.dumps(post_list))

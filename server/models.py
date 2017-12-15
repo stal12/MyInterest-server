@@ -81,6 +81,11 @@ class Person(models.Model):
     image = models.URLField(null=True)
 
 
+class Url(models.Model):
+    link = models.URLField();
+    category = models.ForeignKey(Category)
+
+
 class Item(models.Model):
     link = models.URLField()
     title = models.CharField(max_length=255)

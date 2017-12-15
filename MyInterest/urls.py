@@ -32,5 +32,9 @@ urlpatterns = [
     url(r'^fetch-user/', views.fetch_user),
     url(r'^register-user/', views.register_user),
     url(r'^register-categories/', views.register_categories),
-    url(r'^login/', views.login)
+    url(r'^login/', views.login),
+    url(r'^fetch-items/', views.fetch_items),
+    url(r'^fetch-user-posts/', views.fetch_user_posts),
+    url(r'^fetch-posts/', views.fetch_posts),
+    url(r'^store-post/', views.store_post)
 ]
