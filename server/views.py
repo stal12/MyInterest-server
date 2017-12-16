@@ -264,6 +264,7 @@ def fetch_pending_friends(request):
                 'image': friend_person.image
             } for friend_person in list(person.pending_friends.all())
         ]
+        print(person.pending_friends.all())
         return HttpResponse(json.dumps(pending_friends_ser))
 
 
@@ -449,6 +450,7 @@ def fetch_user_posts(request):
             )
     return HttpResponse(json.dumps(post_list))
 
+
 @csrf_exempt
 def fetch_posts(request):
     user = fetch_user_from_jwt(request)
@@ -538,7 +540,27 @@ def accept_friend(request):
         friend_person = models.Person.objects.get(user=friend_user)
         if (not person.friends.filter(user=friend_user).exists()) and (person.pending_friends.filter(user=friend_user).exists()):
             person.pending_friends.remove(friend_person)
-            person.pending_friends.add(friend_person)
+            person.friends.add(friend_person)
+        response = HttpResponse('')
+        return response
+
+
+@csrf_exempt
+def cancel_friend(request):
+    user = fetch_user_from_jwt(request)
+    if not user:
+        return HttpResponseForbidden()
+    else:
+        person = models.Person.objects.get(user=user)
+        friend_obj = json.loads(request.body)
+        friend_user = models.MyUser.objects.get(id=friend_obj['userid'])
+        friend_person = models.Person.objects.get(user=friend_user)
+        print("Utente loggato: " + person.name)
+        print("Amico rifiutato: " + friend_person.name)
+        print("Amici pendenti dell'utente loggato: " + str([pending_friend.name for pending_friend in person.pending_friends.all()]))
+        if person.pending_friends.filter(user=friend_user).exists():
+            person.pending_friends.remove(friend_person)
+        print("Nuovi amici pendenti dell'utente loggato: " + str([pending_friend.name for pending_friend in person.pending_friends.all()]))
         response = HttpResponse('')
         return response
 
@@ -557,3 +579,18 @@ def delete_friend(request):
             person.friends.remove(friend_person)
         response = HttpResponse('')
         return response
+
+
+@csrf_exempt
+def fetch_users(request):
+    user = fetch_user_from_jwt(request)
+    if not user:
+        return HttpResponseForbidden()
+    else:
+        persons = models.Person.objects.all()
+        persons_ser = [{
+            'id': person.user.id,
+            'name': person.name,
+            'image': person.image
+        } for person in persons]
+        return HttpResponse(json.dumps(persons_ser))

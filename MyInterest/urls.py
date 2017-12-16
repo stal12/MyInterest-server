@@ -31,6 +31,7 @@ urlpatterns = [
     url(r'^facebook-register/', views.facebook_register),
     url(r'^fetch-user/', views.fetch_user),
     url(r'^fetch-person/', views.fetch_person),
+    url(r'^fetch-users/', views.fetch_users),
     url(r'^fetch-friends/', views.fetch_friends),
     url(r'^fetch-pending-friends/', views.fetch_pending_friends),
     url(r'^register-user/', views.register_user),
@@ -44,5 +45,6 @@ urlpatterns = [
     url(r'^store-like/', views.store_like),
     url(r'^request-friend/', views.request_friend),
     url(r'^accept-friend/', views.accept_friend),
+    url(r'^cancel-friend/', views.cancel_friend),
     url(r'^delete-friend/', views.delete_friend)
 ]
