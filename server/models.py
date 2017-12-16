@@ -100,6 +100,7 @@ class Post(models.Model):
     item = models.ForeignKey(Item)
     title = models.CharField(max_length=255)
     likes = models.ManyToManyField(Person)
+    date = models.DateTimeField(auto_now=True)
     # tag
 
 

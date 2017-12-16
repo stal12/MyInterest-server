@@ -30,11 +30,19 @@ urlpatterns = [
     url(r'^facebook-login/', views.facebook_login),
     url(r'^facebook-register/', views.facebook_register),
     url(r'^fetch-user/', views.fetch_user),
+    url(r'^fetch-person/', views.fetch_person),
+    url(r'^fetch-friends/', views.fetch_friends),
+    url(r'^fetch-pending-friends/', views.fetch_pending_friends),
     url(r'^register-user/', views.register_user),
     url(r'^register-categories/', views.register_categories),
     url(r'^login/', views.login),
     url(r'^fetch-items/', views.fetch_items),
     url(r'^fetch-user-posts/', views.fetch_user_posts),
     url(r'^fetch-posts/', views.fetch_posts),
-    url(r'^store-post/', views.store_post)
+    url(r'^store-post/', views.store_post),
+    url(r'^store-comment/', views.store_comment),
+    url(r'^store-like/', views.store_like),
+    url(r'^request-friend/', views.request_friend),
+    url(r'^accept-friend/', views.accept_friend),
+    url(r'^delete-friend/', views.delete_friend)
 ]

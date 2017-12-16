@@ -35,10 +35,10 @@ def fetch_user_obj(email):
             categories.append(category.name)
         friends_id = []
         for friend in person.friends.all():
-            friends_id.append(friend.id)
+            friends_id.append(friend.user.id)
         pending_friends_id = []
         for pending_friend in person.pending_friends.all():
-            pending_friends_id.append(pending_friend.id)
+            pending_friends_id.append(pending_friend.user.id)
         payload = jwt_payload_handler(user)
         token = jwt_encode_handler(payload)
         json_res = {
@@ -108,10 +108,10 @@ def login(request):
             categories.append(category.name)
         friends_id = []
         for friend in person.friends.all():
-            friends_id.append(friend.id)
+            friends_id.append(friend.user.id)
         pending_friends_id = []
         for pending_friend in person.pending_friends.all():
-            pending_friends_id.append(pending_friend.id)
+            pending_friends_id.append(pending_friend.user.id)
         json_res = {
             'token': json.loads(r.content)['token'],
             'id': user.id,
@@ -212,6 +212,62 @@ def fetch_user(request):
 
 
 @csrf_exempt
+def fetch_person(request):
+    user = fetch_user_from_jwt(request)
+    if not user:
+        return HttpResponseForbidden()
+    else:
+        user_obj = json.loads(request.body)
+        user = models.MyUser.objects.get(id=user_obj['userid'])
+        person = models.Person.objects.get(user=user)
+        person_ser = {
+            'id': user.id,
+            'name': person.name,
+            'email': user.email,
+            'image': person.image,
+            'categories': [category.name for category in list(person.categories.all())],
+            'friends': [person.user.id for person in list(person.friends.all())]
+        }
+        return HttpResponse(json.dumps(person_ser))
+
+
+@csrf_exempt
+def fetch_friends(request):
+    user = fetch_user_from_jwt(request)
+    if not user:
+        return HttpResponseForbidden()
+    else:
+        user_obj = json.loads(request.body)
+        user = models.MyUser.objects.get(id=user_obj['userid'])
+        person = models.Person.objects.get(user=user)
+        friends_ser = [
+            {
+                'id': person.user.id,
+                'name': person.name,
+                'image': person.image
+            } for person in list(person.friends.all())
+        ]
+        return HttpResponse(json.dumps(friends_ser))
+
+
+@csrf_exempt
+def fetch_pending_friends(request):
+    user = fetch_user_from_jwt(request)
+    if not user:
+        return HttpResponseForbidden()
+    else:
+        person = models.Person.objects.get(user=user)
+        pending_friends_ser = [
+            {
+                'id': friend_person.user.id,
+                'name': friend_person.name,
+                'image': friend_person.image
+            } for friend_person in list(person.pending_friends.all())
+        ]
+        return HttpResponse(json.dumps(pending_friends_ser))
+
+
+@csrf_exempt
 def register_user(request):
     user_data = json.loads(request.body)
     if ('firstName' not in user_data) or ('lastName' not in user_data) or ('email' not in user_data) or \
@@ -223,12 +279,12 @@ def register_user(request):
             print('password diverse')
             return HttpResponseForbidden()
         else:
-            if MyUser.objects.filter(email=user_data['email']).exists():
+            if models.MyUser.objects.filter(email=user_data['email']).exists():
                 print('esiste già')
                 return HttpResponse('{\n  "error": "user already exists"\n}')
             else:
-                user = MyUser.objects.create_user(email=user_data['email'], password=user_data['password'])
-                Person(user=user, first_name=user_data['firstName'], last_name=user_data['lastName']).save()
+                user = models.MyUser.objects.create_user(email=user_data['email'], password=user_data['password'])
+                models.Person(user=user, first_name=user_data['firstName'], last_name=user_data['lastName']).save()
                 r = requests.post('http://192.168.1.111:8000/api-token-auth/',
                                   {"email": user_data['email'], "password": user_data['password']})
                 print(r.content)
@@ -307,13 +363,46 @@ def store_post(request):
 
 
 @csrf_exempt
+def store_comment(request):
+    user = fetch_user_from_jwt(request)
+    if not user:
+        return HttpResponseForbidden()
+    else:
+        comment_obj = json.loads(request.body)
+        person = models.Person.objects.get(user=user)
+        post = models.Post.objects.get(id=comment_obj['postid'])
+        models.Comment(user=person, post=post, text=comment_obj['text']).save()
+        response = HttpResponse('')
+        return response
+
+
+@csrf_exempt
+def store_like(request):
+    user = fetch_user_from_jwt(request)
+    if not user:
+        return HttpResponseForbidden()
+    else:
+        like_obj = json.loads(request.body)
+        person = models.Person.objects.get(user=user)
+        post = models.Post.objects.get(id=like_obj['postid'])
+        if post.likes.filter(user=person.user).exists():
+            post.likes.remove(person)
+        else:
+            post.likes.add(person)
+        response = HttpResponse('')
+        return response
+
+
+@csrf_exempt
 def fetch_user_posts(request):
     user = fetch_user_from_jwt(request)
     if not user:
         return HttpResponseForbidden()
     else:
+        user_obj = json.loads(request.body)
+        user = models.MyUser.objects.get(id=user_obj['userid'])
         person = models.Person.objects.get(user=user)
-        posts = models.Post.objects.filter(user=person)
+        posts = models.Post.objects.filter(user=person).order_by('-date')
         post_list = []
 
         for post in posts:
@@ -322,12 +411,12 @@ def fetch_user_posts(request):
                 comments.append(
                     {
                         'user': {
-                            'id': comment.user.id,
+                            'id': comment.user.user.id,
                             'name': comment.user.name,
                             'image': comment.user.image
                         },
                         'text': comment.text,
-                        'date': comment.date
+                        'date': str(comment.date)
                     }
                 )
             likes = []
@@ -354,10 +443,10 @@ def fetch_user_posts(request):
                     'comments': comments,
                     'tags': [],
                     'likes': likes,
-                    'liked': False
+                    'liked': False,
+                    'date': str(post.date)
                 }
             )
-
     return HttpResponse(json.dumps(post_list))
 
 @csrf_exempt
@@ -367,13 +456,13 @@ def fetch_posts(request):
         return HttpResponseForbidden()
     else:
         person = models.Person.objects.get(user=user)
-        friends_list = person.friends.all()
-        print(friends_list)
-        posts = models.Post.objects.filter(user=person)
+        friends_list = list(person.friends.all())
+        if not friends_list:
+            friends_list = []
         post_list = []
+        friends_list.append(person)
 
-        for f in friends_list:
-            posts.append(models.Post.objects.filter(f))
+        posts = models.Post.objects.filter(user__in=friends_list).order_by('-date')
 
         for post in posts:
             comments = []
@@ -381,12 +470,12 @@ def fetch_posts(request):
                 comments.append(
                     {
                         'user': {
-                            'id': comment.user.id,
+                            'id': comment.user.user.id,
                             'name': comment.user.name,
                             'image': comment.user.image
                         },
                         'text': comment.text,
-                        'date': comment.date
+                        'date': str(comment.date)
                     }
                 )
             likes = []
@@ -413,8 +502,58 @@ def fetch_posts(request):
                     'comments': comments,
                     'tags': [],
                     'likes': likes,
-                    'liked': False
+                    'liked': False,
+                    'date': str(post.date)
                 }
             )
 
     return HttpResponse(json.dumps(post_list))
+
+
+@csrf_exempt
+def request_friend(request):
+    user = fetch_user_from_jwt(request)
+    if not user:
+        return HttpResponseForbidden()
+    else:
+        friend_obj = json.loads(request.body)
+        person = models.Person.objects.get(user=user)
+        friend_user = models.MyUser.objects.get(id=friend_obj['userid'])
+        friend_person = models.Person.objects.get(user=friend_user)
+        if (not friend_person.friends.filter(user=user).exists()) and (not friend_person.pending_friends.filter(user=user).exists()):
+            friend_person.pending_friends.add(person)
+        response = HttpResponse('')
+        return response
+
+
+@csrf_exempt
+def accept_friend(request):
+    user = fetch_user_from_jwt(request)
+    if not user:
+        return HttpResponseForbidden()
+    else:
+        person = models.Person.objects.get(user=user)
+        friend_obj = json.loads(request.body)
+        friend_user = models.MyUser.objects.get(id=friend_obj['userid'])
+        friend_person = models.Person.objects.get(user=friend_user)
+        if (not person.friends.filter(user=friend_user).exists()) and (person.pending_friends.filter(user=friend_user).exists()):
+            person.pending_friends.remove(friend_person)
+            person.pending_friends.add(friend_person)
+        response = HttpResponse('')
+        return response
+
+
+@csrf_exempt
+def delete_friend(request):
+    user = fetch_user_from_jwt(request)
+    if not user:
+        return HttpResponseForbidden()
+    else:
+        person = models.Person.objects.get(user=user)
+        friend_obj = json.loads(request.body)
+        friend_user = models.MyUser.objects.get(id=friend_obj['userid'])
+        friend_person = models.Person.objects.get(user=friend_user)
+        if person.friends.filter(user=friend_user).exists():
+            person.friends.remove(friend_person)
+        response = HttpResponse('')
+        return response
