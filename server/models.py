@@ -82,8 +82,8 @@ class Person(models.Model):
 
 
 class Url(models.Model):
-    link = models.URLField();
-    category = models.ForeignKey(Category)
+    link = models.URLField()
+    category = models.ForeignKey(Category, on_delete=models.CASCADE)
 
 
 class Item(models.Model):
@@ -91,13 +91,13 @@ class Item(models.Model):
     title = models.CharField(max_length=255)
     description = models.CharField(max_length=255)
     thumbnail = models.URLField(null=True)
-    category = models.ForeignKey(Category)
+    category = models.ForeignKey(Category, on_delete=models.CASCADE)
     date = models.DateTimeField(auto_now=True)
 
 
 class Post(models.Model):
-    user = models.ForeignKey(Person, related_name='author')
-    item = models.ForeignKey(Item)
+    user = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='author')
+    item = models.ForeignKey(Item, on_delete=models.CASCADE)
     title = models.CharField(max_length=255)
     likes = models.ManyToManyField(Person)
     date = models.DateTimeField(auto_now=True)
@@ -105,7 +105,7 @@ class Post(models.Model):
 
 
 class Comment(models.Model):
-    user = models.ForeignKey(Person)
-    post = models.ForeignKey(Post)
+    user = models.ForeignKey(Person, on_delete=models.CASCADE)
+    post = models.ForeignKey(Post, on_delete=models.CASCADE)
     date = models.DateTimeField(auto_now=True)
     text = models.CharField(max_length=255)

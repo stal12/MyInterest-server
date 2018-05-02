@@ -12,17 +12,13 @@ import jwt
 import json
 import time
 from multiprocessing import Process
-from pony import orm
+# from pony import orm
 
 jwt_payload_handler = api_settings.JWT_PAYLOAD_HANDLER
 jwt_encode_handler = api_settings.JWT_ENCODE_HANDLER
 
 
 # Create your views here.
-
-def funzione(name):
-    print('hello', name)
-
 
 def fetch_user_obj(email):
     if not models.MyUser.objects.filter(email=email).exists():
@@ -52,6 +48,19 @@ def fetch_user_obj(email):
             'image': person.image
         }
         return json_res
+
+
+def update_image(email, img):
+    if not models.MyUser.objects.filter(email=email).exists():
+        print('immagine non modificata')
+        return
+    else:
+        user = models.MyUser.objects.get(email=email)
+        person = models.Person.objects.get(user=user)
+        person.image = img
+        person.save()
+        print(person.image)
+        return
 
 
 def fetch_user_from_jwt(request):
@@ -161,8 +170,14 @@ def facebook_login(request):
             if not models.MyUser.objects.filter(email=client_obj['email']).exists():
                 return HttpResponseForbidden()
             else:
+                if 'image' in client_obj:
+                    print('update image')
+                    update_image(client_obj['email'], client_obj['image'])
                 user_obj = fetch_user_obj(client_obj['email'])
                 return HttpResponse(json.dumps(user_obj))
+    # user_obj = fetch_user_obj('stefano.allegretti@hotmail.it') # questo andrà cavato
+
+
 
 @csrf_exempt
 def facebook_register(request):
@@ -214,21 +229,23 @@ def fetch_user(request):
 @csrf_exempt
 def fetch_person(request):
     user = fetch_user_from_jwt(request)
+    person = models.Person.objects.get(user=user)
     if not user:
         return HttpResponseForbidden()
     else:
-        user_obj = json.loads(request.body)
-        user = models.MyUser.objects.get(id=user_obj['userid'])
-        person = models.Person.objects.get(user=user)
-        person_ser = {
-            'id': user.id,
-            'name': person.name,
-            'email': user.email,
-            'image': person.image,
-            'categories': [category.name for category in list(person.categories.all())],
-            'friends': [person.user.id for person in list(person.friends.all())]
+        other_user_obj = json.loads(request.body)
+        other_user = models.MyUser.objects.get(id=other_user_obj['userid'])
+        other_person = models.Person.objects.get(user=other_user)
+        other_person_ser = {
+            'id': other_user.id,
+            'name': other_person.name,
+            'email': other_user.email,
+            'image': other_person.image,
+            'categories': [category.name for category in list(other_person.categories.all())],
+            'friends': [person.user.id for person in list(other_person.friends.all())],
+            'pending': (person in other_person.pending_friends.all())
         }
-        return HttpResponse(json.dumps(person_ser))
+        return HttpResponse(json.dumps(other_person_ser))
 
 
 @csrf_exempt
