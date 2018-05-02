@@ -17,6 +17,8 @@ from multiprocessing import Process
 jwt_payload_handler = api_settings.JWT_PAYLOAD_HANDLER
 jwt_encode_handler = api_settings.JWT_ENCODE_HANDLER
 
+url = '192.168.1.12:8000'
+
 
 # Create your views here.
 
@@ -68,7 +70,7 @@ def fetch_user_from_jwt(request):
         return None
     else:
         token = request.META['HTTP_AUTHORIZATION']
-        r = requests.post('http://localhost:8000/api-token-verify/', {"token": token})
+        r = requests.post('http://{}/api-token-verify/'.format(url), {"token": token})
         if r.status_code != 200:
             return None
         else:
@@ -86,7 +88,7 @@ def prova(request):
     if 'HTTP_AUTHORIZATION' not in request.META:
         return HttpResponseForbidden()
     else:
-        r = requests.post('http://192.168.1.111:8000/api-token-verify/', {"token": request.META['HTTP_AUTHORIZATION']})
+        r = requests.post('http://{}/api-token-verify/'.format(url), {"token": request.META['HTTP_AUTHORIZATION']})
         if r.status_code != 200:
             return HttpResponseForbidden()
         else:
@@ -106,7 +108,7 @@ def login(request):
         credentials = json.loads(request.body)
     except JSONDecodeError:
         return HttpResponseForbidden()
-    r = requests.post('http://localhost:8000/api-token-auth/', credentials)
+    r = requests.post('http://{}/api-token-auth/'.format(url), credentials)
     if r.status_code != 200:
         return HttpResponseForbidden()
     else:
@@ -212,7 +214,7 @@ def fetch_user(request):
         return HttpResponseForbidden()
     else:
         token = request.META['HTTP_AUTHORIZATION']
-        r = requests.post('http://192.168.1.111:8000/api-token-verify/', {"token": token})
+        r = requests.post('http://{}/api-token-verify/'.format(url), {"token": token})
         if r.status_code != 200:
             return HttpResponseForbidden()
         else:
@@ -303,7 +305,7 @@ def register_user(request):
             else:
                 user = models.MyUser.objects.create_user(email=user_data['email'], password=user_data['password'])
                 models.Person(user=user, first_name=user_data['firstName'], last_name=user_data['lastName']).save()
-                r = requests.post('http://192.168.1.111:8000/api-token-auth/',
+                r = requests.post('http://{}/api-token-auth/'.format(url),
                                   {"email": user_data['email'], "password": user_data['password']})
                 print(r.content)
                 return HttpResponse(r)
@@ -319,7 +321,7 @@ def register_categories(request):
             return HttpResponseForbidden()
         else:
             token = request.META['HTTP_AUTHORIZATION']
-            r = requests.post('http://localhost:8000/api-token-verify/', {"token": token})
+            r = requests.post('http://{}/api-token-verify/'.format(url), {"token": token})
             if r.status_code != 200:
                 return HttpResponseForbidden()
             else:
